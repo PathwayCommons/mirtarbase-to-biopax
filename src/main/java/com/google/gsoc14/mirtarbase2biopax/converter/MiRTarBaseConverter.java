@@ -63,6 +63,10 @@ public class MiRTarBaseConverter extends Converter {
             regulation.setControlType(ControlType.INHIBITION);
             regulation.addControlled(templateReaction);
             regulation.addController(mirna);
+            String rname = name + " regulates expression of " + targetGene + " in " + organism;
+            regulation.setStandardName(rname);
+            regulation.setDisplayName(rname);
+            regulation.addName(rname);
 
             PublicationXref pubxref = create(PublicationXref.class, "pub_" + pmid + "_" + UUID.randomUUID());
             model.add(pubxref);
@@ -102,6 +106,7 @@ public class MiRTarBaseConverter extends Converter {
         }
 
         addReactionToPathwayByTraversing(model, regulation, pathway);
+        pathway.addPathwayComponent(regulation);
 
     }
 
