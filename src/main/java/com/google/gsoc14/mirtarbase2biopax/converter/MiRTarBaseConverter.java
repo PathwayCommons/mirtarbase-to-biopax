@@ -31,8 +31,7 @@ public class MiRTarBaseConverter extends Converter {
         int physicalNumberOfRows = sheet.getPhysicalNumberOfRows();
         log.debug("There are " + physicalNumberOfRows + " rows in the miRTarBase file.");
 
-//        for(int r=1; r < physicalNumberOfRows; r++) {
-        for(int r=1; r < 100; r++) {
+        for(int r=1; r < physicalNumberOfRows; r++) {
             Row row = sheet.getRow(r);
 
             /*
