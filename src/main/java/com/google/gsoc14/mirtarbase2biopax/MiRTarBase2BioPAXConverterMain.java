@@ -78,9 +78,10 @@ public class MiRTarBase2BioPAXConverterMain {
 
             if(commandLine.hasOption("r")) {
                 log.debug("Removing tangling Rna and RnaReference classes...");
-                ModelUtils.removeObjectsIfDangling(finalModel, Rna.class);
-                ModelUtils.removeObjectsIfDangling(finalModel, RnaReference.class);
-                log.debug("Done removing.");
+                int removedObjects = 0;
+                removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, Rna.class).size();
+                removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, RnaReference.class).size();
+                log.debug("Done removing: " + removedObjects + " objects.");
             }
 
             String outputFile = commandLine.getOptionValue("o");

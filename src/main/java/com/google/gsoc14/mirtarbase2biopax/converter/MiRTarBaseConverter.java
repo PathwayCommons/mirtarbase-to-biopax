@@ -50,11 +50,11 @@ public class MiRTarBaseConverter extends Converter {
             String name = row.getCell(1).getStringCellValue().trim();
             String organism = row.getCell(2).getStringCellValue().trim();
             String targetGene = row.getCell(3).getStringCellValue().trim();
-            double targetGeneId = row.getCell(4).getNumericCellValue();
+            int targetGeneId = new Double(row.getCell(4).getNumericCellValue()).intValue();
             String targetOrganism = row.getCell(5).getStringCellValue().trim();
             String experiments = row.getCell(6).getStringCellValue().trim();
             String support = row.getCell(7).getStringCellValue().trim();
-            double pmid = row.getCell(8).getNumericCellValue();
+            int pmid = new Double(row.getCell(8).getNumericCellValue()).intValue();
 
             Rna mirna = getMirna(model, id, name);
             TemplateReaction templateReaction = getTranscription(model, targetGene, targetGeneId, targetOrganism);
