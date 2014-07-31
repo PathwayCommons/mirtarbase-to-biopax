@@ -6,18 +6,19 @@ import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.biopax.paxtools.controller.Merger;
+import org.biopax.paxtools.controller.ModelUtils;
 import org.biopax.paxtools.io.SimpleIOHandler;
 import org.biopax.paxtools.model.BioPAXFactory;
 import org.biopax.paxtools.model.BioPAXLevel;
 import org.biopax.paxtools.model.Model;
+import org.biopax.paxtools.model.level3.Rna;
+import org.biopax.paxtools.model.level3.RnaReference;
 import org.biopax.paxtools.trove.TProvider;
 import org.biopax.paxtools.util.BPCollections;
 
 import javax.xml.bind.JAXBException;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 
 public class MiRTarBase2BioPAXConverterMain {
     private static Log log = LogFactory.getLog(MiRTarBase2BioPAXConverterMain.class);
@@ -30,6 +31,7 @@ public class MiRTarBase2BioPAXConverterMain {
                 .addOption("m", "mirbase-aliases", true, "miRNA aliases from mirBase (txt) [optional]")
                 .addOption("t", "mirtarbase-targets", true, "miRTarBase curated targets (XLS) [optional]")
                 .addOption("o", "output", true, "Output file (BioPAX) [required]")
+                .addOption("r", "remove-tangling", false, "Removed tangling Rna objects [optional]")
         ;
 
         try {
@@ -72,6 +74,13 @@ public class MiRTarBase2BioPAXConverterMain {
                 fileStream.close();
                 merger.merge(finalModel, mirModel);
                 log.debug("Merged mirBase model into the final one.");
+            }
+
+            if(commandLine.hasOption("r")) {
+                log.debug("Removing tangling Rna and RnaReference classes...");
+                ModelUtils.removeObjectsIfDangling(finalModel, Rna.class);
+                ModelUtils.removeObjectsIfDangling(finalModel, RnaReference.class);
+                log.debug("Done removing.");
             }
 
             String outputFile = commandLine.getOptionValue("o");
