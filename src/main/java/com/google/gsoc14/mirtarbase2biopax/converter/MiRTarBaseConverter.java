@@ -130,7 +130,7 @@ public class MiRTarBaseConverter extends Converter {
             ref.addName(targetGene);
             ref.setOrganism(getOrganism(model, targetOrganism));
 
-            RelationshipXref entrezXref = create(RelationshipXref.class, "entrezref_" + targetGeneId);
+            Xref entrezXref = create(UnificationXref.class, "entrezref_" + targetGeneId);
             model.add(entrezXref);
             entrezXref.setDb("NCBI Gene");
             entrezXref.setId(targetGeneId + "");
