@@ -53,6 +53,7 @@ public class MirBaseConverter extends Converter {
                 } else { // or add it as a generic
                     Rna oldRna = rna;
                     rna = create(Rna.class, rdfId + "_" + UUID.randomUUID());
+                    rna.setEntityReference(rnaReference);
                     oldRna.addMemberPhysicalEntity(rna);
                 }
 
