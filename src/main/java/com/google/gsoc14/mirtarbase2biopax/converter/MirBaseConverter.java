@@ -1,6 +1,8 @@
 package com.google.gsoc14.mirtarbase2biopax.converter;
 
 import com.google.gsoc14.mirtarbase2biopax.util.MiRTarBaseUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.biopax.paxtools.model.Model;
 import org.biopax.paxtools.model.level3.Rna;
 import org.biopax.paxtools.model.level3.RnaReference;
@@ -11,6 +13,8 @@ import java.util.Scanner;
 import java.util.UUID;
 
 public class MirBaseConverter extends Converter {
+    private static Log log = LogFactory.getLog(MirBaseConverter.class);
+
     private final String separator = "\t";
     private final String intraFieldSeparator = ";";
 
@@ -62,6 +66,11 @@ public class MirBaseConverter extends Converter {
                 rnaReference.addName(name);
             }
         }
+
+        log.debug(
+                "Converted " + model.getObjects(Rna.class).size() + " miRNAs and "
+                + model.getObjects(RnaReference.class).size() + " references to BioPAX."
+        );
 
         return model;
     }
