@@ -13,6 +13,7 @@ import org.biopax.paxtools.model.BioPAXLevel;
 import org.biopax.paxtools.model.Model;
 import org.biopax.paxtools.model.level3.Rna;
 import org.biopax.paxtools.model.level3.RnaReference;
+import org.biopax.paxtools.model.level3.UnificationXref;
 import org.biopax.paxtools.trove.TProvider;
 import org.biopax.paxtools.util.BPCollections;
 
@@ -52,18 +53,6 @@ public class MiRTarBase2BioPAXConverterMain {
             Model finalModel = defaultFactory.createModel();
             Merger merger = new Merger(simpleIOHandler.getEditorMap());
 
-            if(commandLine.hasOption("t")) {
-                log.debug("Found option 't'. Will convert mirTarBase.");
-                String targetFile = commandLine.getOptionValue("t");
-                MiRTarBaseConverter miRTarBaseConverter = new MiRTarBaseConverter();
-                log.debug("MiRTarBase file: " + targetFile);
-                FileInputStream fileStream = new FileInputStream(targetFile);
-                Model targetsModel = miRTarBaseConverter.convert(fileStream);
-                fileStream.close();
-                merger.merge(finalModel, targetsModel);
-                log.debug("Merged miRTarBase model into the final one.");
-            }
-
             if(commandLine.hasOption("m")) {
                 log.debug("Found option 'm'. Will convert mirBase aliases.");
                 String aliasFile = commandLine.getOptionValue("m");
@@ -76,11 +65,24 @@ public class MiRTarBase2BioPAXConverterMain {
                 log.debug("Merged mirBase model into the final one.");
             }
 
+            if(commandLine.hasOption("t")) {
+                log.debug("Found option 't'. Will convert mirTarBase.");
+                String targetFile = commandLine.getOptionValue("t");
+                MiRTarBaseConverter miRTarBaseConverter = new MiRTarBaseConverter();
+                log.debug("MiRTarBase file: " + targetFile);
+                FileInputStream fileStream = new FileInputStream(targetFile);
+                Model targetsModel = miRTarBaseConverter.convert(fileStream);
+                fileStream.close();
+                merger.merge(finalModel, targetsModel);
+                log.debug("Merged miRTarBase model into the final one.");
+            }
+
             if(commandLine.hasOption("r")) {
-                log.debug("Removing tangling Rna and RnaReference classes...");
+                log.debug("Removing tangling Rna, RnaReference and UnificationXref classes...");
                 int removedObjects = 0;
                 removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, Rna.class).size();
                 removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, RnaReference.class).size();
+                removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, UnificationXref.class).size();
                 log.debug("Done removing: " + removedObjects + " objects.");
             }
 
