@@ -1,5 +1,6 @@
 package com.google.gsoc14.mirtarbase2biopax;
 
+import com.google.gsoc14.mirtarbase2biopax.converter.Converter;
 import com.google.gsoc14.mirtarbase2biopax.converter.MiRTarBaseConverter;
 import com.google.gsoc14.mirtarbase2biopax.converter.MirBaseConverter;
 import org.apache.commons.cli.*;
@@ -86,6 +87,8 @@ public class MiRTarBase2BioPAXConverterMain {
                 log.debug("Done removing: " + removedObjects + " objects.");
             }
 
+            log.debug("Setting Xml base to " + Converter.sharedXMLBase);
+            finalModel.setXmlBase(Converter.sharedXMLBase);
             String outputFile = commandLine.getOptionValue("o");
             log.debug("Conversions are done. Now writing the final model to the file: " + outputFile);
             FileOutputStream fileOutputStream = new FileOutputStream(outputFile);

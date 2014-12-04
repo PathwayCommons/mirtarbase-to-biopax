@@ -47,7 +47,7 @@ public class MirBaseConverter extends Converter {
 
             for (String name : tnames) {
                 String rdfId = utils.getMirnaRDF(name);
-                Rna rna = (Rna) model.getByID(rdfId);
+                Rna rna = (Rna) model.getByID(completeId(rdfId));
                 if(rna == null) { // by default generate new one
                     rna = create(Rna.class, rdfId);
                 } else { // or add it as a generic

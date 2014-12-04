@@ -93,7 +93,7 @@ public class MiRTarBaseConverter extends Converter {
 
     private void assignReactionToPathway(Model model, TemplateReactionRegulation regulation, String organism) {
         String pid = "pathway_" + organism.hashCode();
-        Pathway pathway = (Pathway) model.getByID(pid);
+        Pathway pathway = (Pathway) model.getByID(completeId(pid));
         if(pathway == null) {
             pathway = create(Pathway.class, pid);
             model.add(pathway);
@@ -126,7 +126,7 @@ public class MiRTarBaseConverter extends Converter {
 
     private TemplateReaction getTranscription(Model model, String targetGene, double targetGeneId, String targetOrganism) {
         String refId = "ref_" + targetGeneId;
-        ProteinReference ref = (ProteinReference) model.getByID(refId);
+        ProteinReference ref = (ProteinReference) model.getByID(completeId(refId));
         if(ref == null) {
             ref = create(ProteinReference.class, refId);
             model.add(ref);
@@ -149,7 +149,7 @@ public class MiRTarBaseConverter extends Converter {
         }
 
         String proteinId = "protein_" + targetGeneId;
-        Protein protein = (Protein) model.getByID(proteinId);
+        Protein protein = (Protein) model.getByID(completeId(proteinId));
         if(protein == null) {
             protein = create(Protein.class, proteinId);
             model.add(protein);
@@ -161,7 +161,7 @@ public class MiRTarBaseConverter extends Converter {
         }
 
         String reactionId = "template_" + targetGeneId;
-        TemplateReaction templateReaction = (TemplateReaction) model.getByID(reactionId);
+        TemplateReaction templateReaction = (TemplateReaction) model.getByID(completeId(reactionId));
         if(templateReaction == null) {
             templateReaction = create(TemplateReaction.class, reactionId);
             model.add(templateReaction);
@@ -178,7 +178,7 @@ public class MiRTarBaseConverter extends Converter {
 
     private BioSource getOrganism(Model model, String targetOrganism) {
         String orgId = "org_" + targetOrganism.hashCode();
-        BioSource bioSource = (BioSource) model.getByID(orgId);
+        BioSource bioSource = (BioSource) model.getByID(completeId(orgId));
         if(bioSource == null) {
             bioSource = create(BioSource.class, orgId);
             model.add(bioSource);
@@ -191,7 +191,7 @@ public class MiRTarBaseConverter extends Converter {
 
     private Rna getMirna(Model model, String id, String name) {
         String mirnaRDF = getMiRTarBaseUtils().getMirnaRDF(name);
-        Rna rna = (Rna) model.getByID(mirnaRDF);
+        Rna rna = (Rna) model.getByID(completeId(mirnaRDF));
         if(rna == null) {
             rna = create(Rna.class, mirnaRDF);
             model.add(rna);
