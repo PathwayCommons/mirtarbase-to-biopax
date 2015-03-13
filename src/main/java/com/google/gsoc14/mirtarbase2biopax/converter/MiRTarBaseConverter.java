@@ -124,7 +124,7 @@ public class MiRTarBaseConverter extends Converter {
         traverser.traverse(process, model);
     }
 
-    private TemplateReaction getTranscription(Model model, String targetGene, double targetGeneId, String targetOrganism) {
+    private TemplateReaction getTranscription(Model model, String targetGene, int targetGeneId, String targetOrganism) {
         String refId = "ref_" + targetGeneId;
         ProteinReference ref = (ProteinReference) model.getByID(completeId(refId));
         if(ref == null) {
@@ -135,7 +135,7 @@ public class MiRTarBaseConverter extends Converter {
             ref.addName(targetGene);
             ref.setOrganism(getOrganism(model, targetOrganism));
 
-            Xref entrezXref = create(UnificationXref.class, "entrezref_" + targetGeneId);
+            Xref entrezXref = create(RelationshipXref.class, "entrezref_" + targetGeneId);
             model.add(entrezXref);
             entrezXref.setDb("NCBI Gene");
             entrezXref.setId(targetGeneId + "");
