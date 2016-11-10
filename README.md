@@ -1,5 +1,5 @@
 # mirtarbase-to-biopax
-Originated from https://bitbucket.org/armish/gsoc14 and will continue here.
+Originated from https://bitbucket.org/armish/gsoc14 and will continue here (ToDo).
 
 ## MiRTarBase to BioPAX Level3 data converter.
 This data resource is manually curated and it contains validated miRNA-target interactions. These interactions can easily be converted to BioPAX format.
@@ -30,11 +30,11 @@ The image below shows a partial `Homo sapiens` pathway:
 ![Example Homo sapiens pathway with miRNA-target interactions](https://bitbucket.org/armish/gsoc14/downloads/goal4_human_mirna_screenshot-20140731.jpg)
 
 ### Usage
-Check out the latest code and change your directory to [Goal4-miRTarBase/mirtarbase2biopax](https://bitbucket.org/armish/gsoc14/src/default/Goal4-miRTarBase/mirtarbase2biopax/?at=default):
+Check out (git clone) and change to:
 
-	$ cd Goal4-miRTarBase/mirtarbase2biopax
+	$ cd mirtarbase-to-biopax
 
-and do a clean mvn install:
+build with Maven:
 
 	$ mvn clean install assembly:single
 
