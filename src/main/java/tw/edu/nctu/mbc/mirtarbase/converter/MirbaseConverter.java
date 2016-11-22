@@ -1,19 +1,18 @@
-package com.google.gsoc14.mirtarbase2biopax.converter;
+package tw.edu.nctu.mbc.mirtarbase.converter;
 
-import com.google.gsoc14.mirtarbase2biopax.util.MiRTarBaseUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.biopax.paxtools.model.Model;
 import org.biopax.paxtools.model.level3.Rna;
 import org.biopax.paxtools.model.level3.RnaReference;
 import org.biopax.paxtools.model.level3.UnificationXref;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.Scanner;
 import java.util.UUID;
 
-public class MirBaseConverter extends Converter {
-    private static Log log = LogFactory.getLog(MirBaseConverter.class);
+public class MirbaseConverter extends Converter {
+    private static Logger log = LoggerFactory.getLogger(MirbaseConverter.class);
 
     private final String separator = "\t";
     private final String intraFieldSeparator = ";";
@@ -21,7 +20,6 @@ public class MirBaseConverter extends Converter {
     @Override
     public Model convert(InputStream inputStream) throws Exception {
         Model model = createModel();
-        MiRTarBaseUtils utils = getMiRTarBaseUtils();
 
         Scanner scanner = new Scanner(inputStream);
         while(scanner.hasNext()) {
@@ -46,7 +44,7 @@ public class MirBaseConverter extends Converter {
             rnaReference.addName(id);
 
             for (String name : tnames) {
-                String rdfId = utils.getMirnaRDF(name);
+                String rdfId = getMirnaRdfId(name);
                 Rna rna = (Rna) model.getByID(completeId(rdfId));
                 if(rna == null) { // by default generate new one
                     rna = create(Rna.class, rdfId);

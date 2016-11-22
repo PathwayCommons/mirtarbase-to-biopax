@@ -1,7 +1,5 @@
-package com.google.gsoc14.mirtarbase2biopax.converter;
+package tw.edu.nctu.mbc.mirtarbase.converter;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -15,12 +13,14 @@ import org.biopax.paxtools.model.BioPAXLevel;
 import org.biopax.paxtools.model.Model;
 import org.biopax.paxtools.model.level3.*;
 import org.biopax.paxtools.model.level3.Process;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.UUID;
 
-public class MiRTarBaseConverter extends Converter {
-    private static Log log = LogFactory.getLog(MiRTarBaseConverter.class);
+public class MirtarbaseConverter extends Converter {
+    private static Logger log = LoggerFactory.getLogger(MirtarbaseConverter.class);
 
     @Override
     public Model convert(InputStream inputStream) throws Exception {
@@ -190,7 +190,7 @@ public class MiRTarBaseConverter extends Converter {
     }
 
     private Rna getMirna(Model model, String id, String name) {
-        String mirnaRDF = getMiRTarBaseUtils().getMirnaRDF(name);
+        String mirnaRDF = getMirnaRdfId(name);
         Rna rna = (Rna) model.getByID(completeId(mirnaRDF));
         if(rna == null) {
             rna = create(Rna.class, mirnaRDF);
