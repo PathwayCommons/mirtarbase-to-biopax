@@ -1,9 +1,6 @@
 package tw.edu.nctu.mbc.mirtarbase.converter;
 
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.biopax.paxtools.controller.PropertyEditor;
 import org.biopax.paxtools.controller.SimpleEditorMap;
 import org.biopax.paxtools.controller.Traverser;
@@ -26,7 +23,8 @@ public class MirtarbaseConverter extends Converter {
     public Model convert(InputStream inputStream) throws Exception {
         Model model = createModel();
         Workbook wb = WorkbookFactory.create(inputStream);
-        Sheet sheet = wb.getSheet("miRTarBase");
+        Sheet sheet = wb.getSheetAt(0);
+        log.info("Now parsing the first Excel worksheet: " + sheet.getSheetName());
 
         int physicalNumberOfRows = sheet.getPhysicalNumberOfRows();
         log.debug("There are " + physicalNumberOfRows + " rows in the miRTarBase file.");
@@ -50,11 +48,30 @@ public class MirtarbaseConverter extends Converter {
             String name = row.getCell(1).getStringCellValue().trim();
             String organism = row.getCell(2).getStringCellValue().trim();
             String targetGene = row.getCell(3).getStringCellValue().trim();
-            int targetGeneId = new Double(row.getCell(4).getNumericCellValue()).intValue();
+
+            Cell cell = row.getCell(4);
+            int targetGeneId = 0;
+            try {
+                targetGeneId = new Double(cell.getNumericCellValue()).intValue();
+            } catch (Exception e) {
+                log.warn(String.format("failed to parse gene ID at row %d: %s %s %s %s... %s",r,id,name,organism,targetGene, e));
+            }
+
             String targetOrganism = row.getCell(5).getStringCellValue().trim();
-            String experiments = row.getCell(6).getStringCellValue().trim();
-            String support = row.getCell(7).getStringCellValue().trim();
-            int pmid = new Double(row.getCell(8).getNumericCellValue()).intValue();
+
+            cell = row.getCell(6);
+            String experiments = (cell != null) ? cell.getStringCellValue().trim() : null;
+
+            cell = row.getCell(7);
+            String support = (cell != null) ? cell.getStringCellValue().trim() : null;
+
+            cell = row.getCell(8);
+            int pmid = 0;
+            try {
+                pmid = new Double(cell.getNumericCellValue()).intValue();
+            } catch (Exception e) {
+                log.warn(String.format("failed to parse PMID at row %d: %s %s %s... %s",r,id,name,organism,e));
+            }
 
             Rna mirna = getMirna(model, id, name);
             TemplateReaction templateReaction = getTranscription(model, targetGene, targetGeneId, targetOrganism);
@@ -68,14 +85,18 @@ public class MirtarbaseConverter extends Converter {
             regulation.setDisplayName(rname);
             regulation.addName(rname);
 
-            PublicationXref pubxref = create(PublicationXref.class, "pub_" + pmid + "_" + UUID.randomUUID());
-            model.add(pubxref);
-            pubxref.setDb("PubMed");
-            pubxref.setId(pmid + "");
-            regulation.addXref(pubxref);
+            if(pmid > 0) {
+                PublicationXref pubxref = create(PublicationXref.class, "pub_" + pmid + "_" + UUID.randomUUID());
+                model.add(pubxref);
+                pubxref.setDb("PubMed");
+                pubxref.setId(pmid + "");
+                regulation.addXref(pubxref);
+            }
 
-            regulation.addComment(experiments);
-            regulation.addComment(support);
+            if(experiments!=null)
+                regulation.addComment(experiments);
+            if(support!=null)
+                regulation.addComment(support);
             regulation.addAvailability(organism);
 
             assignReactionToPathway(model, regulation, organism);
@@ -125,30 +146,33 @@ public class MirtarbaseConverter extends Converter {
     }
 
     private TemplateReaction getTranscription(Model model, String targetGene, int targetGeneId, String targetOrganism) {
-        String refId = "ref_" + targetGeneId;
-        ProteinReference ref = (ProteinReference) model.getByID(completeId(refId));
+        final String refId = (targetGeneId>0) ? String.valueOf(targetGeneId) : targetGene;
+
+        ProteinReference ref = (ProteinReference) model.getByID(completeId("ref_" + refId));
         if(ref == null) {
-            ref = create(ProteinReference.class, refId);
+            ref = create(ProteinReference.class, "ref_" + refId);
             model.add(ref);
             ref.setDisplayName(targetGene);
             ref.setStandardName(targetGene);
             ref.addName(targetGene);
             ref.setOrganism(getOrganism(model, targetOrganism));
 
-            Xref entrezXref = create(RelationshipXref.class, "entrezref_" + targetGeneId);
-            model.add(entrezXref);
-            entrezXref.setDb("NCBI Gene");
-            entrezXref.setId(targetGeneId + "");
-            ref.addXref(entrezXref);
+            if(targetGeneId>0) {
+                Xref entrezXref = create(RelationshipXref.class, "entrezref_" + refId);
+                model.add(entrezXref);
+                entrezXref.setDb("NCBI Gene");
+                entrezXref.setId(refId);
+                ref.addXref(entrezXref);
+            }
 
-            RelationshipXref symbolXref = create(RelationshipXref.class, "symbolref_" + targetGeneId);
+            RelationshipXref symbolXref = create(RelationshipXref.class, "symbolref_" + refId);
             model.add(symbolXref);
             symbolXref.setDb("HGNC Symbol");
             symbolXref.setId(targetGene);
             ref.addXref(symbolXref);
         }
 
-        String proteinId = "protein_" + targetGeneId;
+        String proteinId = "protein_" + refId;
         Protein protein = (Protein) model.getByID(completeId(proteinId));
         if(protein == null) {
             protein = create(Protein.class, proteinId);
@@ -160,7 +184,7 @@ public class MirtarbaseConverter extends Converter {
             protein.setEntityReference(ref);
         }
 
-        String reactionId = "template_" + targetGeneId;
+        String reactionId = "template_" + refId;
         TemplateReaction templateReaction = (TemplateReaction) model.getByID(completeId(reactionId));
         if(templateReaction == null) {
             templateReaction = create(TemplateReaction.class, reactionId);
