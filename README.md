@@ -7,7 +7,7 @@ miRNA-target interactions. These interactions can easily be converted
 to BioPAX Level3 format.
 
 ### Data source
-- **Home page**: [http://mirtarbase.mbc.nctu.edu.tw](http://mirtarbase.mbc.nctu.edu.tw)
+- **Home page**: http://mirtarbase.mbc.nctu.edu.tw (also, - aliases.txt from http://www.mirbase.org)
 - **Type**: microRNA-target interactions
 - **Format**: XLS/TSV
 - **License**: Free for academic use
@@ -61,24 +61,24 @@ to see the help text:
 
 For a full conversion, two input files are required:
 
-1. MiRTarBase Excel file (either [full](https://bitbucket.org/armish/gsoc14/downloads/goal4_mirtarbase-all_MTI-20140731.xlsx.gz) 
-or [partial](https://bitbucket.org/armish/gsoc14/downloads/goal4_mirtarbase-hsa_MTI-20140731.xlsx.gz), e.g. human)
-2. miRBase aliases ([download](https://bitbucket.org/armish/gsoc14/downloads/goal4_mirbase_aliases-20140731.txt.gz))
+1. MiRTarBase Excel file (either [full](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx) 
+or [partial](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/hsa_MTI.xlsx), e.g. human)
+2. miRBase aliases ([download](ftp://mirbase.org/pub/mirbase/CURRENT/aliases.txt.gz)
 
 both of which can be downloaded from the repository. 
 
 Once downloaded and gunzipped, these can be coverted into BioPAX via the 
 following command:
 
-	$ java -jar mirtarbase-to-biopax.jar -m goal4_mirbase_aliases-20140731.txt -t goal4_mirtarbase-all_MTI-20140731.xlsx -r -o goal4_output_all_mirna-20140731.owl
+	$ java -jar mirtarbase-to-biopax.jar -m aliases.txt -t hsa_MTI.xlsx -r -o output.owl
 
 The `-r` switch is optional, but helps reduce the size of the final model.
 When provided, this makes sure the final model does not included `Rna` 
 and `RnaReference` objects that do not participate in a reaction.
 
-You can download the miRNA-target relationships as a BioPAX file either 
-for all organism ([goal4_output_all_mirna-20140731.owl.gz](https://bitbucket.org/armish/gsoc14/downloads/goal4_output_all_mirna-20140731.owl.gz)) 
-or only human ([goal4_output_human_mirna-20140731.owl.gz](https://bitbucket.org/armish/gsoc14/downloads/goal4_output_human_mirna-20140731.owl.gz))
+You can download previously converted to BioPAX format miRNA-target relationships (v4.5) 
+either for all organism ([goal4_output_all_mirna-20140731.owl.gz](https://bitbucket.org/armish/gsoc14/downloads/goal4_output_all_mirna-20140731.owl.gz)) 
+or - only human ([goal4_output_human_mirna-20140731.owl.gz](https://bitbucket.org/armish/gsoc14/downloads/goal4_output_human_mirna-20140731.owl.gz))
 
 ### Validation results
 The fully converted model is too big to be validated via the web,
