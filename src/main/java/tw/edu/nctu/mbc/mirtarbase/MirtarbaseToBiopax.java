@@ -31,7 +31,8 @@ public class MirtarbaseToBiopax {
             .addOption("m", "mirbase-aliases", true, "miRNA aliases from mirBase (txt) [optional]")
             .addOption("t", "mirtarbase-targets", true, "miRTarBase curated targets (XLS) [optional]")
             .addOption("o", "output", true, "Output file (BioPAX) [required]")
-            .addOption("r", "remove-tangling", false, "Removed tangling Rna objects [optional]");
+            .addOption("r", "remove-tangling", false, "Removed tangling Rna objects [optional]")
+            .addOption("p", "organism-pathway", false, "Generate a large 'pathway' element to group each organism interactions [optional]");
 
         try {
             CommandLine commandLine = clParser.parse(gnuOptions, args);
@@ -65,6 +66,8 @@ public class MirtarbaseToBiopax {
                 log.info("Found option 't'. Will convert mirTarBase.");
                 String targetFile = commandLine.getOptionValue("t");
                 MirtarbaseConverter mirtarbaseConverter = new MirtarbaseConverter();
+                if(commandLine.hasOption("p"))
+                    mirtarbaseConverter.setMakePathwayPerOrganism(true);
                 log.info("MiRTarBase file: " + targetFile);
                 FileInputStream fileStream = new FileInputStream(targetFile);
                 Model targetsModel = mirtarbaseConverter.convert(fileStream);

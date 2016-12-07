@@ -19,6 +19,20 @@ import java.util.UUID;
 public class MirtarbaseConverter extends Converter {
     private static Logger log = LoggerFactory.getLogger(MirtarbaseConverter.class);
 
+    private boolean makePathwayPerOrganism = false;
+
+    /**
+     * Whether to generate such "pathways", one per species, that contain all the interactions.
+     *
+     * @return true/false
+     */
+    public boolean isMakePathwayPerOrganism() {
+        return makePathwayPerOrganism;
+    }
+    public void setMakePathwayPerOrganism(boolean makePathwayPerOrganism) {
+        this.makePathwayPerOrganism = makePathwayPerOrganism;
+    }
+
     @Override
     public Model convert(InputStream inputStream) throws Exception {
         Model model = createModel();
@@ -46,7 +60,7 @@ public class MirtarbaseConverter extends Converter {
 
             String id = row.getCell(0).getStringCellValue().trim();
             String name = row.getCell(1).getStringCellValue().trim();
-            String organism = row.getCell(2).getStringCellValue().trim();
+            String organism = row.getCell(2).getStringCellValue().trim(); //miRNA's organism
             String targetGene = row.getCell(3).getStringCellValue().trim();
 
             Cell cell = row.getCell(4);
@@ -54,7 +68,7 @@ public class MirtarbaseConverter extends Converter {
             try {
                 targetGeneId = new Double(cell.getNumericCellValue()).intValue();
             } catch (Exception e) {
-                log.warn(String.format("failed to parse gene ID at row %d: %s %s %s %s... %s",r,id,name,organism,targetGene, e));
+                log.warn(String.format("failed to parse gene ID at row %d: %s %s, gene: %s (%s)",r,id,name,targetGene, e));
             }
 
             String targetOrganism = row.getCell(5).getStringCellValue().trim();
@@ -70,7 +84,7 @@ public class MirtarbaseConverter extends Converter {
             try {
                 pmid = new Double(cell.getNumericCellValue()).intValue();
             } catch (Exception e) {
-                log.warn(String.format("failed to parse PMID at row %d: %s %s %s... %s",r,id,name,organism,e));
+                log.warn(String.format("failed to parse PMID at row %d: %s, gene: %s (%s)",r,id,name,e));
             }
 
             Rna mirna = getMirna(model, id, name);
@@ -99,7 +113,8 @@ public class MirtarbaseConverter extends Converter {
                 regulation.addComment(support);
             regulation.addAvailability(organism);
 
-            assignReactionToPathway(model, regulation, organism);
+            if(makePathwayPerOrganism)
+                assignReactionToPathway(model, regulation, organism);
         }
 
         log.debug("Done with the miRTarBase conversion: "
@@ -112,26 +127,20 @@ public class MirtarbaseConverter extends Converter {
         return model;
     }
 
+    // Recursively adds control interaction and controlled reactions
+    // to a all-in-one organism "pathway" (not really a bio pathway)
     private void assignReactionToPathway(Model model, TemplateReactionRegulation regulation, String organism) {
         String pid = "pathway_" + organism.hashCode();
         Pathway pathway = (Pathway) model.getByID(completeId(pid));
         if(pathway == null) {
             pathway = create(Pathway.class, pid);
             model.add(pathway);
-
             pathway.setDisplayName(organism);
             pathway.setStandardName(organism);
             pathway.addName(organism);
-
             pathway.setOrganism(getOrganism(model, organism));
         }
 
-        addReactionToPathwayByTraversing(model, regulation, pathway);
-        pathway.addPathwayComponent(regulation);
-
-    }
-
-    private void addReactionToPathwayByTraversing(Model model, Process process, Pathway pathway) {
         // Propagate pathway assignments
         final Pathway finalPathway = pathway;
         Traverser traverser = new Traverser(SimpleEditorMap.get(BioPAXLevel.L3), new Visitor() {
@@ -142,7 +151,9 @@ public class MirtarbaseConverter extends Converter {
                 }
             }
         });
-        traverser.traverse(process, model);
+        traverser.traverse(regulation, model);
+
+        pathway.addPathwayComponent(regulation);
     }
 
     private TemplateReaction getTranscription(Model model, String targetGene, int targetGeneId, String targetOrganism) {
@@ -214,7 +225,7 @@ public class MirtarbaseConverter extends Converter {
     }
 
     private Rna getMirna(Model model, String id, String name) {
-        String mirnaRDF = getMirnaRdfId(name);
+        String mirnaRDF = getMirnaRdfId(name); //rna name has organism part as well, such as 'hsa-' or 'ebv-' (virus)
         Rna rna = (Rna) model.getByID(completeId(mirnaRDF));
         if(rna == null) {
             rna = create(Rna.class, mirnaRDF);
