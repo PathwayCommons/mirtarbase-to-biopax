@@ -63,7 +63,7 @@ For a full conversion, two input files are required:
 
 1. MiRTarBase Excel file (either [full](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx) 
 or [partial](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/hsa_MTI.xlsx), e.g. human)
-2. miRBase aliases ([download](ftp://mirbase.org/pub/mirbase/CURRENT/aliases.txt.gz)
+2. [miRBase aliases](ftp://mirbase.org/pub/mirbase/CURRENT/aliases.txt.gz)
 
 both of which can be downloaded from the repository. 
 
