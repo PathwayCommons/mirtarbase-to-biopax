@@ -53,39 +53,31 @@ the "fat" JAR file, you can try to run it without any command line options
 to see the help text:
 
 	$ java -jar target/mirtarbase-to-biopax.jar
-	usage: MiRTarBase2BioPAXConverterMain
-	-m,--mirbase-aliases <arg>      miRNA aliases from mirBase (txt) [optional]
+	usage: MirtarbaseToBiopax
 	-o,--output <arg>               Output file (BioPAX) [required]
-	-r,--remove-tangling            Removed tangling Rna objects [optional]
-	-t,--mirtarbase-targets <arg>   miRTarBase curated targets (XLS) [optional]
+	...
 
-For a full conversion, two input files are required:
+For a conversion, one input data file is required, and two more are optional 
+(e.g., if you'd like to import organisms and aliases mapping from a specific miRBase release):
 
 1. MiRTarBase Excel file - either [full](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx) 
-or [partial](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/hsa_MTI.xlsx), e.g. human;
+or [partial](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/hsa_MTI.xlsx) (human);
 2. miRBase aliases: ftp://mirbase.org/pub/mirbase/CURRENT/aliases.txt.gz
+3. miRBase organisms: ftp://mirbase.org/pub/mirbase/CURRENT/organisms.txt.gz
 
-both of which can be downloaded from the repository. 
-
-Once downloaded and gunzipped, these can be coverted into BioPAX via the 
+Once downloaded and expanded, these can be converted to BioPAX using the 
 following command:
 
-	$ java -jar mirtarbase-to-biopax.jar -m aliases.txt -t hsa_MTI.xlsx -r -o output.owl
+	$ java -Xmx4g -jar mirtarbase-to-biopax.jar -m aliases.txt -s organisms.txt -i hsa_MTI.xlsx -o out.biopax.owl
 
-The `-r` switch is optional, but helps reduce the size of the final model.
-When provided, this makes sure the final model does not included `Rna` 
-and `RnaReference` objects that do not participate in a reaction.
 
-You can download previously converted to BioPAX format miRNA-target relationships (v4.5) 
-either for all organism ([goal4_output_all_mirna-20140731.owl.gz](https://bitbucket.org/armish/gsoc14/downloads/goal4_output_all_mirna-20140731.owl.gz)) 
-or - only human ([goal4_output_human_mirna-20140731.owl.gz](https://bitbucket.org/armish/gsoc14/downloads/goal4_output_human_mirna-20140731.owl.gz))
-
-### Validation results
-The fully converted model is too big to be validated via the web,
-but the validation results for the human interactions are available under 
+### Validation results (using older converter and data)
+The all-species model was too large to validate online 
+(though, one'd get and run the BioPAX Validator from console). 
+The validation results for the human data are available under 
 the Downloads: [goal4_mirtarbase_validationResults_20140731.zip](https://bitbucket.org/armish/gsoc14/downloads/goal4_mirtarbase_validationResults_20140731.zip).
 
-We don't have any validation errors, but since we are identifying `Protein`s 
+There're no _critical_ validation errors, but since we are identifying `Protein`s 
 with `Entrez Gene ID`s and there can be multiple proteins associated 
 with a single gene. This is not the best practice and this is why we 
 have *denied xrefs* in the report. To fix this, we can bring in new 

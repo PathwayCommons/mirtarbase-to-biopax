@@ -1,16 +1,9 @@
 package tw.edu.nctu.mbc.mirtarbase;
 
-import tw.edu.nctu.mbc.mirtarbase.converter.Converter;
-import tw.edu.nctu.mbc.mirtarbase.converter.MirtarbaseConverter;
-import tw.edu.nctu.mbc.mirtarbase.converter.MirbaseConverter;
+import tw.edu.nctu.mbc.mirtarbase.converter.MirtarbaseToBiopaxConverter;
 import org.apache.commons.cli.*;
-import org.biopax.paxtools.controller.Merger;
-import org.biopax.paxtools.controller.ModelUtils;
 import org.biopax.paxtools.io.SimpleIOHandler;
 import org.biopax.paxtools.model.Model;
-import org.biopax.paxtools.model.level3.Rna;
-import org.biopax.paxtools.model.level3.RnaReference;
-import org.biopax.paxtools.model.level3.UnificationXref;
 import org.biopax.paxtools.trove.TProvider;
 import org.biopax.paxtools.util.BPCollections;
 import org.slf4j.Logger;
@@ -28,70 +21,53 @@ public class MirtarbaseToBiopax {
         final CommandLineParser clParser = new GnuParser();
         Options gnuOptions = new Options();
         gnuOptions
-            .addOption("m", "mirbase-aliases", true, "miRNA aliases from mirBase (txt) [optional]")
-            .addOption("t", "mirtarbase-targets", true, "miRTarBase curated targets (XLS) [optional]")
-            .addOption("o", "output", true, "Output file (BioPAX) [required]")
-            .addOption("r", "remove-tangling", false, "Removed tangling Rna objects [optional]")
-            .addOption("p", "organism-pathway", false, "Generate a large 'pathway' element to group each organism interactions [optional]");
+            .addOption("i", "input", true, "input: MTI.xsl(x) file from miRTarBase [required]")
+            .addOption("o", "output", true, "output: (BioPAX) file name [required]")
+            .addOption("m", "mirbase-aliases", true, "miRNA aliases from mirBase (txt) [optional; use the embedded aliases.txt by default]")
+            .addOption("s", "mirbase-organisms", true, "miRNA organisms from mirBase (txt) [optional]")
+            .addOption("p", "organism-pathway", false, "Generate a large 'pathway' to group target species interactions [optional]");
 
         try {
             CommandLine commandLine = clParser.parse(gnuOptions, args);
 
-            // DrugBank file and output file name are required!
-            if(!commandLine.hasOption("o")) {
+            // input and output files are required!
+            if(!commandLine.hasOption("o") || !commandLine.hasOption("i")) {
                 HelpFormatter helpFormatter = new HelpFormatter();
                 helpFormatter.printHelp(helpText, gnuOptions);
                 System.exit(-1);
             }
 
-            // Memory efficiency fix for huge BioPAX models
+            // Memory efficiency fix for huge BioPAX models (enable trove collections)
             BPCollections.I.setProvider(new TProvider());
-            SimpleIOHandler simpleIOHandler = new SimpleIOHandler();
-            Model finalModel = Converter.bioPAXFactory.createModel();
-            Merger merger = new Merger(simpleIOHandler.getEditorMap());
 
+            FileInputStream aliasesStream = null;
             if(commandLine.hasOption("m")) {
-                log.info("Found option 'm'. Will convert mirBase aliases.");
-                String aliasFile = commandLine.getOptionValue("m");
-                MirbaseConverter mirbaseConverter = new MirbaseConverter();
-                log.info("mirBase file: " + aliasFile);
-                FileInputStream fileStream = new FileInputStream(aliasFile);
-                Model mirModel = mirbaseConverter.convert(fileStream);
-                fileStream.close();
-                merger.merge(finalModel, mirModel);
-                log.info("Merged mirBase model into the final one.");
+                String f = commandLine.getOptionValue("m");
+                log.info("Using mirBase aliases file: " + f);
+                aliasesStream = new FileInputStream(f);
             }
 
-            if(commandLine.hasOption("t")) {
-                log.info("Found option 't'. Will convert mirTarBase.");
-                String targetFile = commandLine.getOptionValue("t");
-                MirtarbaseConverter mirtarbaseConverter = new MirtarbaseConverter();
-                if(commandLine.hasOption("p"))
-                    mirtarbaseConverter.setMakePathwayPerOrganism(true);
-                log.info("MiRTarBase file: " + targetFile);
-                FileInputStream fileStream = new FileInputStream(targetFile);
-                Model targetsModel = mirtarbaseConverter.convert(fileStream);
-                fileStream.close();
-                merger.merge(finalModel, targetsModel);
-                log.info("Merged miRTarBase model into the final one.");
+            FileInputStream organismsStream = null;
+            if(commandLine.hasOption("s")) {
+                String f = commandLine.getOptionValue("s");
+                log.info("Using mirBase organisms file: " + f);
+                organismsStream = new FileInputStream(f);
             }
 
-            if(commandLine.hasOption("r")) {
-                log.info("Removing tangling Rna, RnaReference and UnificationXref classes...");
-                int removedObjects = 0;
-                removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, Rna.class).size();
-                removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, RnaReference.class).size();
-                removedObjects += ModelUtils.removeObjectsIfDangling(finalModel, UnificationXref.class).size();
-                log.info("Done removing: " + removedObjects + " objects.");
-            }
+            final String mtiFile = commandLine.getOptionValue("i");
+            log.info("MiRTarBase input: " + mtiFile);
 
-            // set default xml base
-            finalModel.setXmlBase(Converter.sharedXMLBase);
-            String outputFile = commandLine.getOptionValue("o");
-            log.info("Conversions are done. Now writing the final model to the file: " + outputFile);
-            FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
-            simpleIOHandler.convertToOWL(finalModel, fileOutputStream);
-//            fileOutputStream.close(); //not needed
+            // create, init the converter; run...
+            MirtarbaseToBiopaxConverter converter = new MirtarbaseToBiopaxConverter();
+            converter.setXmlBase("http://mirtarbase.mbc.nctu.edu.tw/#");
+            if(commandLine.hasOption("p"))
+                converter.setMakePathwayPerOrganism(true);
+            // do convert
+            Model model = converter.convert(new FileInputStream(mtiFile), aliasesStream, organismsStream);
+
+            final String outputFile = commandLine.getOptionValue("o");
+            log.info("Writing the BioPAX model to: " + outputFile);
+            (new SimpleIOHandler()).convertToOWL(model, new FileOutputStream(outputFile));
 
             log.info("All done.");
         } catch (ParseException e) {
