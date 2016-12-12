@@ -16,8 +16,6 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.UUID;
-//import java.util.UUID;
 
 public class MirtarbaseToBiopaxConverter {
     private static Logger log = LoggerFactory.getLogger(MirtarbaseToBiopaxConverter.class);
@@ -82,9 +80,9 @@ public class MirtarbaseToBiopaxConverter {
             bioSource = create(BioSource.class, TAXONOMY_NS+taxid);
             bioSource.setDisplayName(name);
             bioSource.setStandardName(name);
-            UnificationXref ux = findById("uxref_taxonomy_" + taxid);
+            UnificationXref ux = findById("taxonomy_" + taxid);
             if(ux == null) {
-                ux = create(UnificationXref.class, "uxref_taxonomy_" + taxid);
+                ux = create(UnificationXref.class, "taxonomy_" + taxid);
                 ux.setDb("Taxonomy");
                 ux.setId(taxid);
             }
@@ -94,6 +92,18 @@ public class MirtarbaseToBiopaxConverter {
         return bioSource;
     }
 
+    /**
+     * Converts miRTarBase to BioPAX L3 model using built-in aliases and organisms maps from MiRBase.
+     *
+     * @param miRTarBase the MTI XSL(X) MS Excel Workbook input stream
+     * @throws Exception when there is an I/O error or invalid input format.
+     * @return model
+     */
+    public Model convert(InputStream miRTarBase) throws IOException {
+        return convert(miRTarBase,
+                getClass().getResourceAsStream("/aliases.txt"),
+                    getClass().getResourceAsStream("/organisms.txt"));
+    }
 
     /**
      * Converts miRTarBase to BioPAX L3 model.
@@ -120,11 +130,13 @@ public class MirtarbaseToBiopaxConverter {
         int physicalNumberOfRows = sheet.getPhysicalNumberOfRows();
         log.info("There are " + physicalNumberOfRows + " rows in the miRTarBase file.");
 
-        //TODO: initialize internal maps from miRBase organisms.txt and aliases.txt
         if(mirAliases==null)
             mirAliases = getClass().getResourceAsStream("/aliases.txt");
         if(mirOrganisms==null)
             mirOrganisms = getClass().getResourceAsStream("/organisms.txt");
+
+        //init internal maps from miRBase
+        loadMirBase(mirAliases,mirOrganisms);
 
         // create a new empty biopax level3 model; set the xml:base
         model = BioPAXLevel.L3.getDefaultFactory().createModel();
@@ -179,37 +191,56 @@ public class MirtarbaseToBiopaxConverter {
                 log.warn(String.format("failed to parse PMID at row %d: %s, gene: %s (%s)", r, id, name, e));
             }
 
-            //TODO: find prev. generated TemplateReactionRegulation by MIRT ID or make a new one
+            //find prev. generated TemplateReactionRegulation by MIRT ID or make a new one
             TemplateReactionRegulation regulation = findById(MIRT_NS + id);
             if(regulation == null)
             {
-                regulation = create(TemplateReactionRegulation.class, MIRT_NS + id);
                 TemplateReaction templateReaction = getTranscription(targetGene, targetGeneId, targetOrganism);
+
+                regulation = create(TemplateReactionRegulation.class, MIRT_NS + id);
                 regulation.setControlType(ControlType.INHIBITION);
                 regulation.addControlled(templateReaction);
 
-                //find or create Rna
-                //we don't use MIRT id here (which belongs to the Control interaction)
-                String mirRdfId = name.toLowerCase(); //names are like 'hsa-miR...'
-                Rna mirna = findById(mirRdfId);
+                //find or create a Rna, RnaRef...
+                final String lcName = name.toLowerCase(); //lc is important
+                final String rnaRefRdfId = "ref_" + lcName;
+                final String rnaRdfId = "rna_"+ lcName; //names are like 'hsa-miR...'
+                Rna mirna = findById(rnaRdfId);
                 if (mirna == null) {
-                    mirna = create(Rna.class, mirRdfId);
+                    mirna = create(Rna.class, rnaRdfId);
                     mirna.setDisplayName(name);
-                    mirna.setStandardName(name);
-                    mirna.addName(name);
-
-                    //TODO: find/create a RnaReference (map name to MI/MIMAT miRBase id)
-//            RelationshipXref relationshipXref = create(RelationshipXref.class, "rxref_" + id);
-//            relationshipXref.setDb("miRTarBase");
-//            relationshipXref.setId(id);
-//            rna.addXref(relationshipXref);
+                    //find/create a RnaReference
+                    RnaReference rnaReference = findById(rnaRefRdfId);
+                    if(rnaReference == null) {
+                        rnaReference = create(RnaReference.class, rnaRefRdfId);
+                        rnaReference.setDisplayName(lcName);
+                        rnaReference.setStandardName(lcName);
+                        rnaReference.setOrganism(getOrganism(orgCodeFromMir(lcName)));
+                        String accessions = mirNameToIdMap.get(lcName);
+                        if(accessions != null) {
+                            for(String ac : accessions.split(";")) {
+                                RelationshipXref x = findById("mirbase_" + ac);
+                                if(x == null) {
+                                    x = create(RelationshipXref.class, "mirbase_" + ac);
+                                    x.setDb((ac.startsWith("MIMAT")) ? "miRBase mature sequence" : "miRBase Sequence");
+                                    x.setId(ac);
+                                }
+                                rnaReference.addXref(x);
+                            }
+                        }
+                    }
+                    mirna.setEntityReference(rnaReference);
                 }
-                regulation.addController(mirna);
 
-                String rname = name + " (" + organism + ") regulates expression of " + targetGene + " in " + targetOrganism;
-                regulation.setStandardName(rname);
-                regulation.setDisplayName(rname);
-                regulation.addName(rname);
+                regulation.addController(mirna);
+                regulation.addName(name + " (" + organism + ") regulates expression of " + targetGene + " in " + targetOrganism);
+                regulation.setDisplayName(name + " regulates " + targetGene);
+                regulation.setStandardName(id);
+
+                RelationshipXref rx = create(RelationshipXref.class, "mirtarbase_" + id);
+                rx.setDb("miRTarBase");
+                rx.setId(id);
+                regulation.addXref(rx);
             }
 
             if(pmid > 0) {
@@ -231,12 +262,13 @@ public class MirtarbaseToBiopaxConverter {
                 assignReactionToPathway(regulation, organism);
         }
 
-        log.info("Removing dangling Rna, RnaReference and Xref...");
-        int removedObjects = 0;
-        removedObjects += ModelUtils.removeObjectsIfDangling(model, Rna.class).size();
-        removedObjects += ModelUtils.removeObjectsIfDangling(model, RnaReference.class).size();
-        removedObjects += ModelUtils.removeObjectsIfDangling(model, Xref.class).size();
-        log.info("Removed " + removedObjects + " objects.");
+// No clean-up - this version converter does not generate any dangling objects.
+//        log.info("Removing dangling Rna, RnaReference and Xref...");
+//        int removedObjects = 0;
+//        removedObjects += ModelUtils.removeObjectsIfDangling(model, Rna.class).size();
+//        removedObjects += ModelUtils.removeObjectsIfDangling(model, RnaReference.class).size();
+//        removedObjects += ModelUtils.removeObjectsIfDangling(model, Xref.class).size();
+//        log.info("Removed " + removedObjects + " objects.");
         log.info("Converted miRTarBase BioPAX model contains: "
                 + model.getObjects(Pathway.class).size() + " pathways; "
                 + model.getObjects(TemplateReaction.class).size() + " template reactions; "
@@ -254,7 +286,7 @@ public class MirtarbaseToBiopaxConverter {
     // Recursively adds control interaction and controlled reactions
     // to a all-in-one organism "pathway" (not really a bio pathway)
     private void assignReactionToPathway(TemplateReactionRegulation regulation, String mirOrganism) {
-        String org = orgNameToCodeMap.get(mirOrganism);
+        String org = orgNameToCodeMap.get(mirOrganism.toLowerCase());
         String taxon = orgCodeToTaxonMap.get(org);
         String pid = "pathway_" + taxon;
         Pathway pathway = findById(pid);
@@ -282,101 +314,107 @@ public class MirtarbaseToBiopaxConverter {
     private TemplateReaction getTranscription(String targetGene, int targetGeneId, String targetOrganism) {
         final String refId = (targetGeneId>0) ? String.valueOf(targetGeneId) : targetGene;
 
-        ProteinReference ref = findById("ref_" + refId);
-        if(ref == null) {
-            ref = create(ProteinReference.class, "ref_" + refId);
-            ref.setDisplayName(targetGene);
-            ref.setStandardName(targetGene);
-            ref.addName(targetGene);
-            ref.setOrganism(getOrganism(orgNameToCodeMap.get(targetOrganism)));
-
-            if(targetGeneId>0) {
-                Xref entrezXref = create(RelationshipXref.class, "entrezref_" + refId);
-                entrezXref.setDb("NCBI Gene");
-                entrezXref.setId(refId);
-                ref.addXref(entrezXref);
-            }
-
-            RelationshipXref symbolXref = create(RelationshipXref.class, "symbolref_" + refId);
-            symbolXref.setDb("HGNC Symbol");
-            symbolXref.setId(targetGene);
-            ref.addXref(symbolXref);
-        }
-
-        String proteinId = "protein_" + refId;
-        Protein protein = findById(proteinId);
-        if(protein == null) {
-            protein = create(Protein.class, proteinId);
-            protein.setStandardName(targetGene);
-            protein.setDisplayName(targetGene);
-            protein.addName(targetGene);
-            protein.setEntityReference(ref);
-        }
-
         String reactionId = "template_" + refId;
         TemplateReaction templateReaction = findById(reactionId);
         if(templateReaction == null) {
             templateReaction = create(TemplateReaction.class, reactionId);
             String tname = targetGene + " production.";
             templateReaction.setDisplayName(tname);
-            templateReaction.setStandardName(tname);
-            templateReaction.addName(tname);
-            templateReaction.addProduct(protein);
             templateReaction.setTemplateDirection(TemplateDirectionType.FORWARD);
+            // define/find the protein
+            String proteinId = "protein_" + refId;
+            Protein protein = findById(proteinId);
+            if(protein == null) {
+                protein = create(Protein.class, proteinId);
+                protein.setDisplayName(targetGene);
+
+                //define/find a protein reference
+                ProteinReference ref = findById("ref_" + refId);
+                if(ref == null) {
+                    ref = create(ProteinReference.class, "ref_" + refId);
+                    ref.setDisplayName(targetGene);
+                    ref.setOrganism(getOrganism(orgNameToCodeMap.get(targetOrganism.toLowerCase())));
+                    //add xrefs
+                    if(targetGeneId > 0) {
+                        RelationshipXref x = findById( "ncbi_gene_" + targetGeneId);
+                        if(x == null) {
+                            x = create(RelationshipXref.class, "ncbi_gene_" + targetGeneId);
+                            x.setDb("NCBI Gene");
+                            x.setId(targetGeneId+"");
+                        }
+                        ref.addXref(x);
+                    }
+                    RelationshipXref x = findById("hgnc_symbol_" + targetGene);
+                    if(x == null) {
+                        x = create(RelationshipXref.class, "hgnc_symbol_" + targetGene);
+                        x.setDb("HGNC Symbol");
+                        x.setId(targetGene);
+                    }
+                    ref.addXref(x);
+                }
+
+                protein.setEntityReference(ref);
+            }
+
+            templateReaction.addProduct(protein);
         }
 
         return templateReaction;
     }
 
-    private void loadMirBase(InputStream aliasesInputStream, InputStream organismsInputStream) throws Exception {
+    private void loadMirBase(InputStream aliasesInputStream, InputStream organismsInputStream) throws IOException {
         final String separator = "\t";
         final String intraFieldSeparator = ";";
 
-        //TODO: refactor; init MI/MIMAT ID to/form miRNA names maps (instead of generating biopax)...
+        mirNameToIdMap.clear();
+
+        //init miRNA name to MI/MIMAT IDs (if many, separate IDs with semicolon) map
         Scanner scanner = new Scanner(aliasesInputStream);
         while(scanner.hasNext()) {
             String line = scanner.nextLine();
-            String tokens[] = line.split(separator);
-            String id = tokens[0].trim();
-            String names = tokens[1].trim();
-            if(names.endsWith(";"))
-                names = names.substring(0, names.length()-1); // Get rid of the last ; at the end
-            String tnames[] = names.split(intraFieldSeparator);
+            if (line.startsWith("#"))
+                continue;
 
-            RnaReference rnaReference = create(RnaReference.class, id);
+            String cols[] = line.split(separator);
+            final String id = cols[0].trim();
+            String names = cols[1].trim();
+            if (names.endsWith(";"))
+                names = names.substring(0, names.length() - 1); // Get rid of the last ; at the end
 
-            UnificationXref unificationXref = create(UnificationXref.class, "uxref_" + id);
-            unificationXref.setDb((id.startsWith("MIMAT")) ? "miRBase mature sequence" : "miRBase Sequence");
-            unificationXref.setId(id);
-            rnaReference.addXref(unificationXref);
-            rnaReference.setDisplayName(id);
-            rnaReference.setStandardName(id);
-            rnaReference.addName(id);
-
-            for (String name : tnames) {
-                String rdfId = name.toLowerCase();
-                Rna rna = findById(rdfId);
-                if(rna == null) { // by default generate new one
-                    rna = create(Rna.class, rdfId);
-                } else { // or add it as a generic
-                    Rna oldRna = rna;
-                    rna = create(Rna.class, rdfId + "_" + UUID.randomUUID());
-                    oldRna.addMemberPhysicalEntity(rna);
+            for (String tname : names.split(intraFieldSeparator)) {
+                final String name = tname.toLowerCase();
+                String wasId = mirNameToIdMap.get(name);
+                if( wasId != null) {
+                    log.debug(String.format("miR name %s maps to: %s;%s", name, wasId,id));
+                    if(!wasId.contains(id))
+                        mirNameToIdMap.put(name,wasId+";"+id);
+                } else {
+                    mirNameToIdMap.put(name, id);
                 }
-
-                rna.setEntityReference(rnaReference);
-                rna.setDisplayName(name);
-                rna.setStandardName(name);
-                rna.addName(name);
-                rna.addName(id);
-                rnaReference.addName(name);
-
-                //set 'organism' using 'hsa', 'ebv',.. from the first name
-                if(rnaReference.getOrganism()==null)
-                    rnaReference.setOrganism(getOrganism(name.substring(0,3)));
             }
         }
 
-        //TODO: init organism code to/form name, taxon maps...
+        // Init organism code to/form name, taxon maps;
+        orgCodeToTaxonMap.clear();
+        orgCodeToNameMap.clear();
+        orgNameToCodeMap.clear();
+        //organisms.txt (miRBase) columns:
+        //#organism #division   #name   #tree   #NCBI-taxid
+        scanner = new Scanner(organismsInputStream);
+        while(scanner.hasNext()) {
+            String line = scanner.nextLine();
+            if(line.startsWith("#"))
+                continue;
+
+            String cols[] = line.split(separator);
+            String code = cols[0].trim();
+            String name = cols[2].trim();
+            String taxid = cols[4].trim();
+
+            orgCodeToTaxonMap.put(code,taxid);
+            orgCodeToNameMap.put(code,name);
+            orgNameToCodeMap.put(name.toLowerCase(),code);
+        }
+
     }
 }

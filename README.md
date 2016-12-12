@@ -62,26 +62,10 @@ For a conversion, one input data file is required, and two more are optional
 
 1. MiRTarBase Excel file - either [full](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx) 
 or [partial](http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/hsa_MTI.xlsx) (human);
-2. miRBase aliases: ftp://mirbase.org/pub/mirbase/CURRENT/aliases.txt.gz
-3. miRBase organisms: ftp://mirbase.org/pub/mirbase/CURRENT/organisms.txt.gz
+2. miRBase aliases: ftp://mirbase.org/pub/mirbase/CURRENT/aliases.txt.gz (optional, - if you'd use the very latest data)
+3. miRBase organisms: ftp://mirbase.org/pub/mirbase/CURRENT/organisms.txt.gz (optional)
 
 Once downloaded and expanded, these can be converted to BioPAX using the 
 following command:
 
 	$ java -Xmx4g -jar mirtarbase-to-biopax.jar -m aliases.txt -s organisms.txt -i hsa_MTI.xlsx -o out.biopax.owl
-
-
-### Validation results (using older converter and data)
-The all-species model was too large to validate online 
-(though, one'd get and run the BioPAX Validator from console). 
-The validation results for the human data are available under 
-the Downloads: [goal4_mirtarbase_validationResults_20140731.zip](https://bitbucket.org/armish/gsoc14/downloads/goal4_mirtarbase_validationResults_20140731.zip).
-
-There're no _critical_ validation errors, but since we are identifying `Protein`s 
-with `Entrez Gene ID`s and there can be multiple proteins associated 
-with a single gene. This is not the best practice and this is why we 
-have *denied xrefs* in the report. To fix this, we can bring in new 
-background files, for example Gene -> Uniprot mappings, into the 
-conversion tool, but since Pathway Commons already has these utilities 
-in place, I think we can leave this mapping issue to the Pathway Commons 
-data integration pipeline for now.
