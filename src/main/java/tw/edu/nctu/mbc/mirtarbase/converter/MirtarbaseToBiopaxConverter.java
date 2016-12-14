@@ -177,20 +177,6 @@ public class MirtarbaseToBiopaxConverter {
 
             String targetOrganism = row.getCell(5).getStringCellValue().trim();
 
-            cell = row.getCell(6);
-            String experiments = (cell != null) ? cell.getStringCellValue().trim() : null;
-
-            cell = row.getCell(7);
-            String support = (cell != null) ? cell.getStringCellValue().trim() : null;
-
-            cell = row.getCell(8);
-            int pmid = 0;
-            try {
-                pmid = new Double(cell.getNumericCellValue()).intValue();
-            } catch (Exception e) {
-                log.warn(String.format("failed to parse PMID at row %d: %s, gene: %s (%s)", r, id, name, e));
-            }
-
             //find prev. generated TemplateReactionRegulation by MIRT ID or make a new one
             TemplateReactionRegulation regulation = findById(MIRT_NS + id);
             if(regulation == null)
@@ -243,20 +229,45 @@ public class MirtarbaseToBiopaxConverter {
                 regulation.addXref(rx);
             }
 
-            if(pmid > 0) {
+
+            cell = row.getCell(6);
+            String experiments = (cell != null) ? cell.getStringCellValue().trim() : null;
+            cell = row.getCell(7);
+            String support = (cell != null) ? cell.getStringCellValue().trim() : null;
+            cell = row.getCell(8);
+
+            try {
+                int pmid = new Double(cell.getNumericCellValue()).intValue();
+
                 PublicationXref pubxref = findById("pub_" + pmid);
-                if(pubxref == null) {
+                if (pubxref == null) {
                     pubxref = create(PublicationXref.class, "pub_" + pmid);
                     pubxref.setDb("PubMed");
                     pubxref.setId(pmid + "");
                 }
                 regulation.addXref(pubxref);
-            }
 
-            if(experiments!=null)
-                regulation.addComment(experiments);
-            if(support!=null)
-                regulation.addComment(support);
+                //TODO: add Evidence using 'pmid','experiment','support' columns...
+                //TODO: add Score - exp.methods, e.g.: 'Microarray', and value, e.g.: 'Functional MTI (Weak)'?..
+//                Evidence ev = create(Evidence.class, "evidence_" + id + "_" + pmid); //TODO: id for Evidence?..
+//                ev.addXref(pubxref);
+//                Score score = create(Score.class, "?..");
+//                score.addXref(methodRelXref);
+//                ev.addConfidence(score);
+
+                if (experiments != null) {
+                    //TODO: add either evidence/confidence:Score/scoreSource or evidence/evidenceCode (CV/Xref- MI term)?
+                    regulation.addComment(experiments);
+                }
+
+                if (support != null) {
+                    //TODO: add evidence/confidence:Score/value (e.g., 'Functional MTI')
+                    regulation.addComment(support);
+                }
+
+            } catch (Exception e) {
+                log.error(String.format("failed to parse PMID at row %d: %s, gene: %s (%s)", r, id, name, e));
+            }
 
             if(makePathwayPerOrganism) //per miRNA's species, not target gene's organism
                 assignReactionToPathway(regulation, organism);
