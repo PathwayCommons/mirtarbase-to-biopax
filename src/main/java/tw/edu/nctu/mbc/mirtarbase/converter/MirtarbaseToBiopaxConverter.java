@@ -13,9 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 public class MirtarbaseToBiopaxConverter {
     private static Logger log = LoggerFactory.getLogger(MirtarbaseToBiopaxConverter.class);
@@ -142,6 +140,8 @@ public class MirtarbaseToBiopaxConverter {
         model = BioPAXLevel.L3.getDefaultFactory().createModel();
         model.setXmlBase(xmlBase);
 
+        Set<String> uniqueExperimentTypes = new HashSet<String>(); //tmp map
+
         // process rows
         for(int r=1; r < physicalNumberOfRows; r++) {
             Row row = sheet.getRow(r);
@@ -219,7 +219,7 @@ public class MirtarbaseToBiopaxConverter {
                 }
 
                 regulation.addController(mirna);
-                regulation.addName(name + " (" + organism + ") regulates expression of " + targetGene + " in " + targetOrganism);
+//                regulation.addName(name + " (" + organism + ") regulates expression of " + targetGene + " in " + targetOrganism);
                 regulation.setDisplayName(name + " regulates " + targetGene);
                 regulation.setStandardName(id);
 
@@ -247,24 +247,62 @@ public class MirtarbaseToBiopaxConverter {
                 }
                 regulation.addXref(pubxref);
 
-                //TODO: add Evidence using 'pmid','experiment','support' columns...
-                //TODO: add Score - exp.methods, e.g.: 'Microarray', and value, e.g.: 'Functional MTI (Weak)'?..
-//                Evidence ev = create(Evidence.class, "evidence_" + id + "_" + pmid); //TODO: id for Evidence?..
-//                ev.addXref(pubxref);
-//                Score score = create(Score.class, "?..");
-//                score.addXref(methodRelXref);
-//                ev.addConfidence(score);
+                //add Evidence using 'pmid','experiment','support' columns...
+                Evidence ev = create(Evidence.class, "evidence_" + id + "_" + pmid);
+                ev.addXref(pubxref);
+                regulation.addEvidence(ev);
 
                 if (experiments != null) {
-                    //TODO: add either evidence/confidence:Score/scoreSource or evidence/evidenceCode (CV/Xref- MI term)?
-                    regulation.addComment(experiments);
+                    regulation.addComment("Experiments (as in miRTarBase sheet): " + experiments);
+                    //fix the 'Experiment' column content (might contain ridiculous typos); order matters:
+                    experiments = experiments.trim().toLowerCase()
+                            .replaceAll("\\\\","")
+                            .replaceAll("5\"","5'")
+                            .replaceAll("3\"","3'")
+                            .replaceAll("5race","5'race")
+                            .replaceAll("3race","3'race")
+                            .replaceAll("blog","blot")
+                            .replaceAll("blotting","blot")
+                            .replaceAll("weastern|wstern|wetsern|westren","western")
+                            .replaceAll("taion","tation")
+                            .replaceAll("flourescence","fluorescence")
+                            .replaceAll("assays","assay")
+                            .replaceAll("pcrw","pcr//w") //missing separator
+                            .replaceAll("rt_pcr|rt pcr|rtpcr","rt-pcr") //works for qrt* too
+                            .replaceAll("micorarray","microarray")
+                            .replaceAll("(real time)|real_time","real-time")
+                            ;
+
+                    //add evidence/evidenceCode* (use ECO; can be multiple names, thus CVs, per row/evidence - sep. by '//' or ';')
+                    final String[] expTypes = experiments.split("[/;,]+");
+                    for(String s : expTypes) {
+                        String expType = s.trim();
+                        //TODO: map semi-fixed mirtarbase terms to standard valid ECO (e.g., 'qrt-pcr'), CHMO (e.g., '2dge') terms/synonyms
+                        if(expType.contains("western"))
+                            expType = "western blot";
+                        if(expType.contains("northern"))
+                            expType = "northern blot";
+                        //...
+
+                        if (!expType.isEmpty()) {
+                            uniqueExperimentTypes.add(expType); //TODO: remove diagn./debug code
+                        }
+                    }
                 }
 
                 if (support != null) {
-                    //TODO: add evidence/confidence:Score/value (e.g., 'Functional MTI')
-                    regulation.addComment(support);
+                    //set evidence/confidence:Score/value (e.g., 'Functional MTI')
+//                    regulation.addComment(support);
+                    String value = support.trim().toLowerCase();
+                    String scoreId = "score_" + value.replaceAll("[^-\\w]+", "_");
+                    Score score = findById(scoreId);
+                    if(score==null) {
+                        score = create(Score.class, scoreId);
+                        score.setValue(value);
+//                      score.addXref(methodRelXref); // or set scoreSource - concrete exp. method if possible
+                    }
+                    ev.addConfidence(score);
                 }
-
             } catch (Exception e) {
                 log.error(String.format("failed to parse PMID at row %d: %s, gene: %s (%s)", r, id, name, e));
             }
@@ -272,6 +310,9 @@ public class MirtarbaseToBiopaxConverter {
             if(makePathwayPerOrganism) //per miRNA's species, not target gene's organism
                 assignReactionToPathway(regulation, organism);
         }
+
+        for(String s : uniqueExperimentTypes)
+            System.out.println(s); //TODO: remove diagn./debug code
 
 // No clean-up - this version converter does not generate any dangling objects.
 //        log.info("Removing dangling Rna, RnaReference and Xref...");
