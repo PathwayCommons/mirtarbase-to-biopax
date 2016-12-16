@@ -253,16 +253,16 @@ public class MirtarbaseToBiopaxConverter {
                 regulation.addEvidence(ev);
 
                 if (experiments != null) {
-                    regulation.addComment("Experiments (as in miRTarBase sheet): " + experiments);
-                    //fix the 'Experiment' column content (might contain ridiculous typos); order matters:
-                    experiments = experiments.trim().toLowerCase()
+                    // parse,fix the 'Experiment' data cell value (contains funny typos), in order:
+                    String fixExperiments = experiments.trim().toLowerCase()
                             .replaceAll("\\\\","")
+                            .replaceAll(",",";")
                             .replaceAll("5\"","5'")
                             .replaceAll("3\"","3'")
                             .replaceAll("5race","5'race")
                             .replaceAll("3race","3'race")
-                            .replaceAll("blog","blot")
-                            .replaceAll("blotting","blot")
+                            .replaceAll("blog|blotting","blot")
+                            .replaceAll("blo$","blot")
                             .replaceAll("weastern|wstern|wetsern|westren","western")
                             .replaceAll("taion","tation")
                             .replaceAll("flourescence","fluorescence")
@@ -271,21 +271,35 @@ public class MirtarbaseToBiopaxConverter {
                             .replaceAll("rt_pcr|rt pcr|rtpcr","rt-pcr") //works for qrt* too
                             .replaceAll("micorarray","microarray")
                             .replaceAll("(real time)|real_time","real-time")
-                            ;
+                            .replaceAll("immuo","immuno")
+                            .replaceAll("communo","coimmuno")
+                    ;
 
-                    //add evidence/evidenceCode* (use ECO; can be multiple names, thus CVs, per row/evidence - sep. by '//' or ';')
-                    final String[] expTypes = experiments.split("[/;,]+");
+                    ev.addComment(fixExperiments);
+
+                    //TODO: ? evidenceCode (prefer MI to ECO/CHMO; handle multiple terms per evidence/row...)
+                    //perhaps, '//' chains or orders the exp. methods, whereas ';' or ',' separates different protocols/chains used...
+                    final String[] expTypes = fixExperiments.split("[/;,]+");
                     for(String s : expTypes) {
                         String expType = s.trim();
-                        //TODO: map semi-fixed mirtarbase terms to standard valid ECO (e.g., 'qrt-pcr'), CHMO (e.g., '2dge') terms/synonyms
+                        //fix semi-fixed mirtarbase terms
                         if(expType.contains("western"))
-                            expType = "western blot";
-                        if(expType.contains("northern"))
-                            expType = "northern blot";
+                            expType = "western blot"; //MI:0113
+                        else if(expType.contains("northern"))
+                            expType = "northern blot"; //MI:0929
+                        else if(expType.startsWith("flow"))
+                            expType = "flow cytometry"; //MI:0054
+//                        else if(expType.contains("2dge"))
+//                            expType = "electrophoresis"; // electrophoresis MI:0982 ?
+
+                        if(expType.contains("reporter") && !expType.startsWith("reporter")) {
+                            expType = expType.replaceAll("reporter(\\s+assay)?", "assay");
+                        }
+
                         //...
 
                         if (!expType.isEmpty()) {
-                            uniqueExperimentTypes.add(expType); //TODO: remove diagn./debug code
+                            uniqueExperimentTypes.add(expType); //TODO: remove diagnostic code
                         }
                     }
                 }
@@ -294,12 +308,15 @@ public class MirtarbaseToBiopaxConverter {
                     //set evidence/confidence:Score/value (e.g., 'Functional MTI')
 //                    regulation.addComment(support);
                     String value = support.trim().toLowerCase();
+                    //TODO: decide whether to re-use same-value Scores or not (exper. methods/tools chain may differ...)
                     String scoreId = "score_" + value.replaceAll("[^-\\w]+", "_");
                     Score score = findById(scoreId);
                     if(score==null) {
                         score = create(Score.class, scoreId);
                         score.setValue(value);
-//                      score.addXref(methodRelXref); // or set scoreSource - concrete exp. method if possible
+                        //TODO: ? PublicationXref (url: method wiki URL), or MI RX...
+//                      score.addXref(px);
+                        //TODO: set scoreSource:Provenance (mirTaRBase; same as for all Entities)
                     }
                     ev.addConfidence(score);
                 }
