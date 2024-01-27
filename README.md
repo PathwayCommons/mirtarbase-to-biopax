@@ -6,7 +6,7 @@ This data resource is manually curated and it contains validated
 miRNA-target interactions. These interactions can easily be converted 
 to BioPAX Level3 format.
 
-### Data source
+### Data source [now it looks outdated/discontinued; format is now different too]
 - **Home page**: http://mirtarbase.mbc.nctu.edu.tw (also, - aliases.txt from http://www.mirbase.org)
 - **Type**: microRNA-target interactions
 - **Format**: XLS/TSV
